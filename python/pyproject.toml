@@ -1,0 +1,23 @@
+[build-system]
+requires = ["maturin>=1.0,<2.0"]
+build-backend = "maturin"
+
+[project]
+name = "ninot-forgejo"
+requires-python = ">=3.10"
+dynamic = ["version"]
+dependencies = ["typing-extensions>=4,<5"]
+
+[project.optional-dependencies]
+test = ["httpx>=0.28,<1", "pytest>=8,<9"]
+
+[dependency-groups]
+release = ["setuptools-scm>=8"]
+
+[tool.maturin]
+module-name = "ninot_forgejo._native"
+python-source = "src"
+
+[tool.mypy]
+strict = true
+python_version = "3.10"

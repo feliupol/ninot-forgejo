@@ -1,0 +1,655 @@
+{
+  "_comment": [
+    "Corrections to the pinned Forgejo Swagger description, applied by build.rs before the",
+    "definitions reach typify. Every entry carries a `reason`: the spec is generated from",
+    "Forgejo's Go structs with `omitempty` everywhere, so it describes what a field may hold",
+    "but never that the API sends it, and it describes nothing at all for a few things the",
+    "fake has always sent. These entries are the only hand-written part of the generated types.",
+    "",
+    "`required` marks properties the fake always sends, so the generated fields are not",
+    "`Option`s that serde skips when empty: a response has to carry the key to be read as the",
+    "shape a client expects. `nullable` marks the ones it sends as `null`, which keeps the key",
+    "while making the field an `Option`. `properties` adds what the spec does not describe.",
+    "",
+    "Note that a required nullable property is `Option<T>` without `skip_serializing_if`, and a",
+    "required vector is a `Vec` that renders as `[]` rather than being left out; both are what",
+    "the response bodies have always looked like."
+  ],
+  "definitions": {
+    "APIError": {
+      "reason": "Forgejo names the API URL of the request in every error body. Handlers do not know it and leave it null, so the server can fill it in, which means the key has to be there even when it holds nothing.",
+      "required": [
+        "message",
+        "url"
+      ],
+      "nullable": [
+        "url"
+      ]
+    },
+    "Branch": {
+      "reason": "The fake answers the branch operations with every field the spec declares, and with its own `commit` object: the spec's PayloadCommit renders an author as a PayloadUser with a username, while a branch listing has always named the git signature that made the commit, date and all.",
+      "required": [
+        "commit",
+        "effective_branch_protection_name",
+        "enable_status_check",
+        "name",
+        "protected",
+        "required_approvals",
+        "status_check_contexts",
+        "user_can_merge",
+        "user_can_push"
+      ],
+      "properties": {
+        "commit": {
+          "$ref": "#/definitions/BranchCommit"
+        }
+      }
+    },
+    "ChangedFile": {
+      "reason": "The changed files of a pull request have always carried `blob_url` next to the `contents_url` and `raw_url` the spec declares; a client that resolves the blob of a file needs it.",
+      "required": [
+        "additions",
+        "changes",
+        "contents_url",
+        "deletions",
+        "filename",
+        "raw_url",
+        "status"
+      ],
+      "properties": {
+        "blob_url": {
+          "type": "string",
+          "x-go-name": "BlobURL"
+        }
+      }
+    },
+    "Comment": {
+      "reason": "The comment operations return every field the spec declares, `user` included, so the generated struct carries them all rather than an `Option` per field that serde would leave out when empty.",
+      "required": [
+        "assets",
+        "body",
+        "created_at",
+        "html_url",
+        "id",
+        "issue_url",
+        "original_author",
+        "original_author_id",
+        "pull_request_url",
+        "updated_at",
+        "user"
+      ]
+    },
+    "Commit": {
+      "reason": "The commits of a pull request name their git author and committer as `null`, as git alone knows them; a client reads `commit.author` for the signature instead.",
+      "required": [
+        "author",
+        "commit",
+        "committer",
+        "parents",
+        "sha"
+      ],
+      "nullable": [
+        "author",
+        "committer"
+      ]
+    },
+    "ContentsResponse": {
+      "reason": "A file and a directory are both a ContentsResponse. A directory holds no content and no download URL, and the fake has always told a submodule apart from a blob with `is_submodule`, which the spec does not declare.",
+      "required": [
+        "_links",
+        "content",
+        "download_url",
+        "encoding",
+        "git_url",
+        "html_url",
+        "last_commit_sha",
+        "name",
+        "path",
+        "sha",
+        "size",
+        "submodule_git_url",
+        "target",
+        "type",
+        "url"
+      ],
+      "nullable": [
+        "content",
+        "download_url",
+        "encoding",
+        "submodule_git_url",
+        "target"
+      ],
+      "properties": {
+        "is_submodule": {
+          "type": "boolean",
+          "x-go-name": "IsSubmodule"
+        }
+      }
+    },
+    "FileLinksResponse": {
+      "reason": "The links of a file's contents carry the download URL, which the spec's FileLinksResponse leaves out; a directory listing has no such link and sends none.",
+      "required": [
+        "git",
+        "html",
+        "self"
+      ],
+      "properties": {
+        "download": {
+          "type": "string",
+          "x-go-name": "DownloadURL"
+        }
+      }
+    },
+    "Hook": {
+      "reason": "The spec describes neither the last delivery's outcome nor the URLs a client pings, tests or reads the deliveries of a hook at; the fake has always sent `last_response`, `name`, `ping_url`, `test_url` and `deliveries_url`. A hook's `config` is a map of strings, as Forgejo reads one, rather than an untyped object.",
+      "required": [
+        "active",
+        "config",
+        "created_at",
+        "deliveries_url",
+        "events",
+        "id",
+        "last_response",
+        "name",
+        "ping_url",
+        "test_url",
+        "type",
+        "updated_at",
+        "url"
+      ],
+      "properties": {
+        "config": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          },
+          "x-go-name": "Config"
+        },
+        "deliveries_url": {
+          "type": "string",
+          "x-go-name": "DeliveriesURL"
+        },
+        "last_response": {
+          "$ref": "#/definitions/HookLastResponse"
+        },
+        "name": {
+          "type": "string",
+          "x-go-name": "Name"
+        },
+        "ping_url": {
+          "type": "string",
+          "x-go-name": "PingURL"
+        },
+        "test_url": {
+          "type": "string",
+          "x-go-name": "TestURL"
+        }
+      }
+    },
+    "Issue": {
+      "reason": "The issue operations return every field the spec declares. `closed_at` is `null` while an issue is open, `due_date` and `milestone` are `null` as the fake has none, `pull_request` is `null` for an issue that is not one, and `assignee` is `null` when nobody is assigned.",
+      "required": [
+        "assets",
+        "assignee",
+        "assignees",
+        "body",
+        "closed_at",
+        "comments",
+        "created_at",
+        "due_date",
+        "html_url",
+        "id",
+        "is_locked",
+        "labels",
+        "milestone",
+        "number",
+        "original_author",
+        "original_author_id",
+        "pin_order",
+        "pull_request",
+        "ref",
+        "repository",
+        "state",
+        "title",
+        "updated_at",
+        "url",
+        "user"
+      ],
+      "nullable": [
+        "assignee",
+        "closed_at",
+        "due_date",
+        "milestone",
+        "pull_request"
+      ]
+    },
+    "Label": {
+      "reason": "The label operations return every field the spec declares, and a label declares no date-time of its own.",
+      "required": [
+        "color",
+        "description",
+        "exclusive",
+        "id",
+        "is_archived",
+        "name",
+        "url"
+      ]
+    },
+    "PayloadCommit": {
+      "reason": "A push payload names each commit's git author and committer as a PayloadUser whose username is `null`, and has always said whether the commit was distinct and which tree it points at, which the spec's PayloadCommit leaves out.",
+      "required": [
+        "added",
+        "author",
+        "committer",
+        "distinct",
+        "id",
+        "message",
+        "modified",
+        "removed",
+        "timestamp",
+        "tree_id",
+        "url"
+      ],
+      "properties": {
+        "distinct": {
+          "type": "boolean",
+          "x-go-name": "Distinct"
+        },
+        "tree_id": {
+          "type": "string",
+          "x-go-name": "TreeID"
+        }
+      }
+    },
+    "PayloadUser": {
+      "reason": "A push payload names the author of a commit by git signature alone, so the username Forgejo resolves to a user is `null`.",
+      "required": [
+        "email",
+        "name",
+        "username"
+      ],
+      "nullable": [
+        "username"
+      ]
+    },
+    "Permission": {
+      "reason": "A repository's `permissions` object reports all three of what the caller may do, and Forgejo sends it whenever a repository is rendered.",
+      "required": [
+        "admin",
+        "pull",
+        "push"
+      ]
+    },
+    "PRBranchInfo": {
+      "reason": "The base and head of a pull request name their repository by its meta alone, as the fake has always rendered it: the full repository would repeat the whole object beside every pull request.",
+      "required": [
+        "label",
+        "ref",
+        "repo",
+        "sha"
+      ],
+      "properties": {
+        "repo": {
+          "$ref": "#/definitions/RepositoryMeta"
+        }
+      }
+    },
+    "PullRequest": {
+      "reason": "The pull request operations return every field the spec declares. `closed_at` and `merged_at` are `null` until they happen, `merged_by` is `null` while a pull request is unmerged, `merge_commit_sha` is `null` the same, `due_date` and `milestone` are `null` as the fake has none, and `assignee` is `null` when nobody is assigned.",
+      "required": [
+        "additions",
+        "assignee",
+        "assignees",
+        "base",
+        "body",
+        "changed_files",
+        "closed_at",
+        "comments",
+        "created_at",
+        "deletions",
+        "diff_url",
+        "draft",
+        "due_date",
+        "head",
+        "html_url",
+        "id",
+        "labels",
+        "merge_commit_sha",
+        "mergeable",
+        "merged",
+        "merged_at",
+        "merged_by",
+        "milestone",
+        "number",
+        "patch_url",
+        "review_comments",
+        "state",
+        "title",
+        "updated_at",
+        "url",
+        "user"
+      ],
+      "nullable": [
+        "assignee",
+        "closed_at",
+        "due_date",
+        "merge_commit_sha",
+        "merged_at",
+        "merged_by",
+        "milestone"
+      ]
+    },
+    "RepoCommit": {
+      "reason": "A commit of a pull request names the message and the signatures that made it, and nothing else: git has no tree, url or verification to report for the fake's own commits.",
+      "required": [
+        "author",
+        "committer",
+        "message"
+      ]
+    },
+    "Repository": {
+      "reason": "The repository operations return every field the spec declares except the organization-only ones, and two more: `forks`, which Forgejo's clients read beside `forks_count`, and `pushed_at`, the `date-time` at which the repository was last pushed, which the spec leaves out entirely. `description` is `null` for a repository without one, `parent` and `repo_transfer` are `null` as no repository is a fork or being transferred, `archived_at` is `null` as no repository is archived, and `pushed_at` is `null` until something is pushed.",
+      "required": [
+        "allow_fast_forward_only_merge",
+        "allow_merge_commits",
+        "allow_rebase",
+        "allow_rebase_explicit",
+        "allow_rebase_update",
+        "allow_squash_merge",
+        "archived",
+        "archived_at",
+        "clone_url",
+        "created_at",
+        "default_branch",
+        "description",
+        "empty",
+        "fork",
+        "forks",
+        "forks_count",
+        "full_name",
+        "has_actions",
+        "has_issues",
+        "has_packages",
+        "has_projects",
+        "has_pull_requests",
+        "has_releases",
+        "has_wiki",
+        "html_url",
+        "id",
+        "ignore_whitespace_conflicts",
+        "internal",
+        "link",
+        "mirror",
+        "mirror_interval",
+        "mirror_updated",
+        "name",
+        "object_format_name",
+        "open_issues_count",
+        "open_pr_counter",
+        "original_url",
+        "owner",
+        "parent",
+        "permissions",
+        "private",
+        "pushed_at",
+        "release_counter",
+        "repo_transfer",
+        "size",
+        "ssh_url",
+        "stars_count",
+        "template",
+        "topics",
+        "updated_at",
+        "url",
+        "watchers_count",
+        "website",
+        "default_delete_branch_after_merge"
+      ],
+      "nullable": [
+        "archived_at",
+        "description",
+        "parent",
+        "pushed_at",
+        "repo_transfer"
+      ],
+      "properties": {
+        "forks": {
+          "type": "integer",
+          "format": "int64",
+          "x-go-name": "Forks"
+        },
+        "pushed_at": {
+          "type": "string",
+          "format": "date-time",
+          "x-go-name": "PushedAt"
+        },
+        "default_delete_branch_after_merge": {
+          "type": "boolean"
+        }
+      }
+    },
+    "ServerVersion": {
+      "reason": "`GET /version` answers with the version the pinned spec names.",
+      "required": [
+        "version"
+      ]
+    },
+    "TopicName": {
+      "reason": "The topics operation answers with a list that is empty, as the fake models no topics; the key has to be there for a client that reads `topics`.",
+      "required": [
+        "topics"
+      ]
+    },
+    "User": {
+      "reason": "The user operations, and every repository, issue, comment and payload that names one, send every field the spec declares, so none of them is an `Option` serde would leave out when empty.",
+      "required": [
+        "active",
+        "avatar_url",
+        "created",
+        "description",
+        "email",
+        "followers_count",
+        "following_count",
+        "full_name",
+        "html_url",
+        "id",
+        "is_admin",
+        "language",
+        "last_login",
+        "location",
+        "login",
+        "login_name",
+        "prohibit_login",
+        "pronouns",
+        "restricted",
+        "source_id",
+        "starred_repos_count",
+        "visibility",
+        "website"
+      ]
+    },
+    "Compare": {
+      "reason": "Compare always returns commits and files arrays, including an empty comparison.",
+      "required": [
+        "commits",
+        "files"
+      ]
+    },
+    "CombinedStatus": {
+      "reason": "A combined commit status always includes statuses; Forgejo returns null before any context has reported.",
+      "required": [
+        "statuses"
+      ],
+      "nullable": [
+        "statuses"
+      ]
+    },
+    "ActionTaskResponse": {
+      "reason": "The Actions task listing always includes workflow_runs, including when empty.",
+      "required": [
+        "workflow_runs"
+      ]
+    },
+    "ListActionRunResponse": {
+      "reason": "The workflow run listing always includes workflow_runs, including when empty.",
+      "required": [
+        "workflow_runs"
+      ]
+    }
+  },
+  "additions": {
+    "BranchCommit": {
+      "reason": "What a branch listing names as its head commit: the spec's PayloadCommit renders an author as a PayloadUser with a username, which a git signature has no answer for, so a branch has always reported the signature itself, date included.",
+      "required": [
+        "author",
+        "committer",
+        "id",
+        "message",
+        "timestamp",
+        "url",
+        "verification"
+      ],
+      "nullable": [
+        "verification"
+      ],
+      "schema": {
+        "description": "A commit as a branch listing reports it",
+        "type": "object",
+        "x-go-package": "ninot-forgejo",
+        "properties": {
+          "author": {
+            "$ref": "#/definitions/CommitUser"
+          },
+          "committer": {
+            "$ref": "#/definitions/CommitUser"
+          },
+          "id": {
+            "type": "string",
+            "x-go-name": "ID"
+          },
+          "message": {
+            "type": "string",
+            "x-go-name": "Message"
+          },
+          "timestamp": {
+            "type": "string",
+            "format": "date-time",
+            "x-go-name": "Timestamp"
+          },
+          "url": {
+            "type": "string",
+            "x-go-name": "URL"
+          },
+          "verification": {
+            "$ref": "#/definitions/PayloadCommitVerification"
+          }
+        }
+      }
+    },
+    "HookLastResponse": {
+      "reason": "What a hook reports about its last delivery: the spec describes no such object, and the fake has always answered a hook with the code it was given, the error it failed with, and whether the hook is unused, pending, active or failed. A delivery that was never made has no code and no error, so both keys are sent as null.",
+      "required": [
+        "code",
+        "message",
+        "status"
+      ],
+      "nullable": [
+        "code",
+        "message"
+      ],
+      "schema": {
+        "description": "The outcome of a webhook's last delivery",
+        "type": "object",
+        "x-go-package": "ninot-forgejo",
+        "properties": {
+          "code": {
+            "type": "integer",
+            "format": "int64",
+            "x-go-name": "Code"
+          },
+          "message": {
+            "type": "string",
+            "x-go-name": "Message"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "unused",
+              "pending",
+              "active",
+              "failed"
+            ],
+            "x-go-name": "Status"
+          }
+        }
+      }
+    },
+    "PushPayload": {
+      "reason": "The pinned spec describes no webhook payload at all, as none of its responses is a push. This is the payload Forgejo sends for a `push`: the ref and the shas before and after it, the commits it added, the head commit, and the repository, pusher and sender the event happened in and on behalf of. Every key is sent, whatever it holds: `commits` and `total_commits` are empty for a deleted ref, `head_commit` is `null` for one, and `pusher` and `sender` are `null` when the token that pushed names no user the fake knows.",
+      "required": [
+        "after",
+        "before",
+        "commits",
+        "compare_url",
+        "head_commit",
+        "pusher",
+        "ref",
+        "repository",
+        "sender",
+        "total_commits"
+      ],
+      "nullable": [
+        "head_commit",
+        "pusher",
+        "sender"
+      ],
+      "schema": {
+        "description": "The payload of a `push` webhook event",
+        "type": "object",
+        "x-go-package": "ninot-forgejo",
+        "properties": {
+          "after": {
+            "type": "string",
+            "x-go-name": "After"
+          },
+          "before": {
+            "type": "string",
+            "x-go-name": "Before"
+          },
+          "commits": {
+            "type": "array",
+            "items": {
+              "$ref": "#/definitions/PayloadCommit"
+            },
+            "x-go-name": "Commits"
+          },
+          "compare_url": {
+            "type": "string",
+            "x-go-name": "CompareURL"
+          },
+          "head_commit": {
+            "$ref": "#/definitions/PayloadCommit"
+          },
+          "pusher": {
+            "$ref": "#/definitions/User"
+          },
+          "ref": {
+            "type": "string",
+            "x-go-name": "Ref"
+          },
+          "repository": {
+            "$ref": "#/definitions/Repository"
+          },
+          "sender": {
+            "$ref": "#/definitions/User"
+          },
+          "total_commits": {
+            "type": "integer",
+            "format": "int64",
+            "x-go-name": "TotalCommits"
+          }
+        }
+      }
+    }
+  }
+}
