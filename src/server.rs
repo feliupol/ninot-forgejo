@@ -227,7 +227,7 @@ impl Server {
         let admin_token = token::new_token(TOKEN_PREFIX);
         let name = token::new_token(TOKEN_PREFIX);
         let data_dir = std::env::temp_dir().join(format!("ninot-forgejo-{}", &name[4..]));
-        std::fs::create_dir_all(&data_dir)?;
+        create_private_dir(&data_dir)?;
         let tls = if options.tls {
             let tls =
                 ninot_common::tls::generate("ninot-forgejo local CA").map_err(io::Error::other)?;
@@ -1541,9 +1541,29 @@ impl Server {
     }
 }
 
+/// Creates `path` (and missing parents) readable only by its owner.
+fn create_private_dir(path: &Path) -> io::Result<()> {
+    let mut builder = std::fs::DirBuilder::new();
+    builder.recursive(true);
+    #[cfg(unix)]
+    std::os::unix::fs::DirBuilderExt::mode(&mut builder, 0o700);
+    builder.create(path)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[cfg(unix)]
+    #[test]
+    fn private_dirs_are_owner_only() {
+        use std::os::unix::fs::PermissionsExt as _;
+        let dir = std::env::temp_dir().join(format!("ninot-forgejo-mode-{}", std::process::id()));
+        create_private_dir(&dir).unwrap();
+        let mode = std::fs::metadata(&dir).unwrap().permissions().mode() & 0o777;
+        std::fs::remove_dir(&dir).unwrap();
+        assert_eq!(mode, 0o700);
+    }
 
     /// The token the `Authorization` header `value` carries.
     fn token_from_authorization(value: &str) -> Option<String> {
